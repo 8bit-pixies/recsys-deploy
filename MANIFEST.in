@@ -1,0 +1,7 @@
+data.pkl
+dictionary
+*.index
+lsi
+lsi.projection
+lsi.projection.u.npy
+tfidf

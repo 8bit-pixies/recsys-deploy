@@ -32,13 +32,14 @@ MAX_DIM = 2 ** 7  # for gensim_lsi
 MAX_DIM_NLIST = 2 ** 7  # for faiss
 
 
-def load_reference_data():
+def load_reference_data(write_pickle=False):
     # there are different languages - the naive approach is to train a different
     # model for each language; we'll deal with that detail later -
     df = pd.read_csv("data/tags_on_posts_sample.csv")[["tags", "lang"]]
     # ignore countries....for now
     df["lan"] = df["lang"].apply(lambda x: x[:2])
-    df.to_pickle("notebooks/model_simple/data.pkl")
+    if write_pickle:
+        df.to_pickle("notebooks/model_simple/data.pkl")
     return df
 
 
@@ -54,16 +55,18 @@ def train_or_load_model():
     calculated_max_dim = min(min(MAX_DIM, max(dictionary.dfs.keys())), len(texts))
     calculated_nlist = min(calculated_max_dim, MAX_DIM_NLIST)
     bow_corpus = [dictionary.doc2bow(text) for text in texts]
-    print(f"..calculated dictionary size: {Style.BRIGHT + Fore.BLUE}{max(dictionary.cfs.keys())}{Style.RESET_ALL}.")
 
     if not os.path.exists(TFIDF_PATH):
+        print(f"..calculated dictionary size: {Style.BRIGHT + Fore.BLUE}{max(dictionary.cfs.keys())}{Style.RESET_ALL}.")
         tfidf = models.TfidfModel(bow_corpus)
         tfidf.save(TFIDF_PATH)
     else:
         tfidf = models.TfidfModel.load(TFIDF_PATH)
-    print(f"..finished tfidf...now training lsi with {Style.BRIGHT + Fore.BLUE}{calculated_max_dim}{Style.RESET_ALL}")
 
     if not os.path.exists(LSI_PATH):
+        print(
+            f"..finished tfidf...now training lsi with {Style.BRIGHT + Fore.BLUE}{calculated_max_dim}{Style.RESET_ALL}"
+        )
         lsi = models.LsiModel(
             tfidf[bow_corpus],
             num_topics=calculated_max_dim,
@@ -75,15 +78,13 @@ def train_or_load_model():
         lsi.save(LSI_PATH)
     else:
         lsi = models.LsiModel.load(LSI_PATH)
-    print("..finished lsi...")
     # need to dump and save tfidf, lsi, dictionary
     output = lsi[tfidf[bow_corpus]]
     # usage: gensim.matutils.corpus2csc(output[:5])
     # just don't try dumping everything or we'll have issues
 
-    print(f"..using index FlatL2: {calculated_nlist}.")
-
     if not os.path.exists(FAISS_PATH):
+        print(f"..using index FlatL2: {calculated_nlist}.")
         index = faiss.IndexFlatL2(calculated_nlist)
         # split into batches..
 
@@ -109,12 +110,11 @@ def generate_recommendations(query, k=5, df=None, dictionary=None, tfidf=None, l
         df = load_reference_data()
     if dictionary is None or tfidf is None or lsi is None or index is None:
         dictionary, tfidf, lsi, index = train_or_load_model()
-    bow_query = [dictionary.doc2bow(query)]
 
+    bow_query = [dictionary.doc2bow(query)]
     output_query = lsi[tfidf[bow_query]]
 
     d = index.d
-    k = 10
     xt = gensim.matutils.corpus2csc(output_query, num_terms=d).A.T.astype(np.float32)
     D, I = index.search(xt, k)
     suggested = df.iloc[I.flatten()].copy()
@@ -146,7 +146,7 @@ def benchmark_function(df, dictionary, tfidf, lsi, index):
 
 
 if __name__ == "__main__":
-    df = load_reference_data
+    df = load_reference_data()
     dictionary, tfidf, lsi, index = train_or_load_model()
 
     t = timeit.Timer("benchmark_function(df, dictionary, tfidf, lsi, index)", globals=globals())
