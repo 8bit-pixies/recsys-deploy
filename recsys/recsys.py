@@ -10,6 +10,7 @@ import pandas as pd
 import pkg_resources
 from gensim import corpora, models
 from pydantic import BaseModel, validator
+from scipy.spatial import distance
 
 
 class Query(BaseModel):
@@ -38,13 +39,14 @@ def recommend_random(query: List[str], limit: int = 5) -> List[str]:
 
 
 def recommend_simple(
-    query: List[str], limit: int = 5, df=None, dictionary=None, tfidf=None, lsi=None, index=None
+    query: List[str], limit: int = 5, df=None, dictionary=None, w2v=None, tfidf=None, lsi=None, index=None
 ) -> List[str]:
     # load all the models etc...
     if df is None:
         df = pd.read_pickle(pkg_resources.resource_stream(__name__, "metadata_simple/data.pkl"))
-    if dictionary is None or tfidf is None or lsi is None or index is None:
+    if dictionary is None or w2v is None or tfidf is None or lsi is None or index is None:
         dictionary = corpora.Dictionary.load(os.path.join(os.path.dirname(__file__), "metadata_simple/dictionary"))
+        w2v = models.Word2Vec.load(os.path.join(os.path.dirname(__file__), "metadata_simple/w2v"))
         tfidf = models.TfidfModel.load(os.path.join(os.path.dirname(__file__), "metadata_simple/tfidf"))
         lsi = models.LsiModel.load(os.path.join(os.path.dirname(__file__), "metadata_simple/lsi"))
         index = faiss.read_index(os.path.join(os.path.dirname(__file__), "metadata_simple/faiss.index"))
@@ -65,10 +67,23 @@ def recommend_simple(
         .groupby("tag")
         .first()
         .reset_index()
-        .head(limit)[["tag", "score"]]
-        .to_dict(orient="records")
+        # .head(limit)[["tag", "score"]]
+        # .to_dict(orient="records")
     )
-    return output
+
+    mean_query = [w2v.wv[x] for x in query if x in w2v.wv.key_to_index]
+    if len(mean_query) == 0:
+        return output.head(limit)[["tag", "score"]].to_dict(orient="records")
+    else:
+        mean_query = np.mean(mean_query, axis=0)
+        w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
+        mean_query = mean_query.reshape(1, -1)
+        w2v_dist = distance.cdist(mean_query, w2v_tag).flatten()
+        output["score"] = output["score"] * (w2v_dist + 1)
+
+        # sort by score and output
+        output = output.sort_values(by=["score"])
+        return output.head(limit)[["tag", "score"]].to_dict(orient="records")
 
 
 def recommend_lang(query: List[str], limit: int = 5) -> List[str]:
