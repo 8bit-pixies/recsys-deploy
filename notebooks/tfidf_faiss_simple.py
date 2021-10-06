@@ -9,17 +9,16 @@ https://github.com/facebookresearch/faiss/blob/main/demos/demo_client_server_ivf
 
 This one doesn't separate by language, just to simplify deployment on my 8gb ram machine
 """
-from gensim import models
-from gensim import corpora
-import gensim
-import pandas as pd
-import numpy as np
-import faiss
-from colorama import Fore, Style
-import tqdm
-
 import os
 import timeit
+
+import faiss
+import gensim
+import numpy as np
+import pandas as pd
+import tqdm
+from colorama import Fore, Style
+from gensim import corpora, models
 
 DICTIONARY_PATH = "notebooks/model_simple/dictionary"
 TFIDF_PATH = "notebooks/model_simple/tfidf"

@@ -2,7 +2,7 @@ from distutils.core import setup
 
 from setuptools import find_packages
 
-REQUIRED = ["pandas", "scikit-learn", "colorama", "pydantic", "colorama"]
+REQUIRED = ["pandas", "scikit-learn", "colorama", "pydantic", "colorama", "gensim", "fastapi", "uvicorn"]
 
 DEV_REQUIRED = [
     "black",
@@ -13,6 +13,7 @@ DEV_REQUIRED = [
     "mypy",  # to deal with later...
     "types-setuptools",
     "types-python-dateutil",
+    "httpx",
 ]
 
 setup(

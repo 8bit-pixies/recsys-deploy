@@ -133,3 +133,6 @@ data/
 notebooks/model
 
 *.pdf
+
+recsys/metadata_simple
+notebooks/model_simple

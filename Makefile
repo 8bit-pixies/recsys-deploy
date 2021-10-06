@@ -23,9 +23,10 @@ lint-python:
 
 podman_build:
 	# buildah containers
-	$(docker) build -t recsys -f docker/Dockerfile .
+	$(docker) build -t recsys -f docker/Dockerfile.api .
 
 podman_run:
 	# podman run recsys '<json blob>'
 	# podman run recsys
-	$(docker) run recsys
+	# $(docker) run recsys
+	$(docker) run --rm -it -p 8000:8000 recsys
