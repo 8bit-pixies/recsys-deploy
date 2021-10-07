@@ -1,10 +1,11 @@
 # I'm using podman - change this where appropriate!
 docker = podman
 
-train:
+train_large:
 	# move training data to data/
 	mkdir notebooks/model_dual
 	wget -O notebooks/model_dual/lid.176.bin https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
+	wget -O notebooks/model_dual/xlmr.base.tar.gz https://dl.fbaipublicfiles.com/fairseq/models/xlmr.base.tar.gz
 	python notebooks/tfidf_faiss_dual.pytest
 	cp -r notebooks/model_dual/* recsys/model_dual/*
 
