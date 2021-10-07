@@ -82,6 +82,8 @@ The benchmark results can be run through `python benchmark/benchmark.py`, which 
 
 # Benchmark Results
 
+The below were based on running off the container - not "locally"
+
 ```
 $ python benchmark/benchmark.py
 100%|█████████████████████████████████████████████████████████| 2000/2000 [04:22<00:00,  7.62it/s]
