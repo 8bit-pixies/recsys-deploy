@@ -17,7 +17,7 @@ def benchmark_function(df=df, repeats=2000):
         indx = random.choice(range(df.shape[0]))
         indx2 = random.choice(range(df.shape[0]))
         query1 = df.iloc[indx].tags.split(",")
-        query2 = df.iloc[indx].tags.split(",")
+        query2 = df.iloc[indx2].tags.split(",")
         query_all = query1 + query2
         # random sample
         if len(query_all) > 6:

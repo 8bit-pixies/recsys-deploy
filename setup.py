@@ -2,7 +2,7 @@ from distutils.core import setup
 
 from setuptools import find_packages
 
-REQUIRED = ["pandas", "scikit-learn", "colorama", "pydantic", "colorama", "gensim", "fastapi", "uvicorn"]
+REQUIRED = ["pandas", "scikit-learn", "colorama", "pydantic", "colorama", "gensim", "fastapi", "uvicorn", "fasttext"]
 
 DEV_REQUIRED = [
     "black",

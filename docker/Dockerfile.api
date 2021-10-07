@@ -5,7 +5,7 @@ ARG PY_VER=3.8.11
 FROM ubuntu:20.04
 
 # System packages 
-RUN apt-get update && apt-get install -yq curl wget jq vim
+RUN apt-get update && apt-get install -yq curl wget jq vim build-essential
 
 # Use the above args during building https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
 ARG CONDA_VER
@@ -18,7 +18,7 @@ ENV PATH=/miniconda/bin:${PATH}
 RUN conda update -y conda
 RUN conda install -c anaconda -y python=3.8
 RUN conda install -c pytorch faiss-cpu
-RUN pip install pandas scikit-learn colorama pydantic colorama gensim fastapi uvicorn
+RUN pip install pandas scikit-learn colorama pydantic colorama gensim fastapi uvicorn fasttext
 
 WORKDIR /app
 COPY . /app

@@ -1,0 +1,21 @@
+(datafusion) ➜  recsys-deploy git:(master) ✗ python notebooks/tfidf_faiss_dual.py
+Warning : `load_model` does not return WordVectorModel or SupervisedModel any more, but a `FastText` object which is very similar.
+... next
+..calculated dictionary size (w2v): 27917.
+..calculated dictionary size: 27917.
+..finished tfidf...now training lsi with 800
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 190/190 [42:20<00:00, 13.37s/it]
+..using index FlatL2: 800.
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 190/190 [00:32<00:00,  5.86it/s]
+... next
+..calculated dictionary size (w2v): 1236.
+..calculated dictionary size: 1236.
+..finished tfidf...now training lsi with 800
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [00:04<00:00,  1.24it/s]
+..using index FlatL2: 800.
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [00:00<00:00, 13.74it/s]
+... next
+..calculated dictionary size: 27917.
+... next
+..calculated dictionary size: 27917.
+[{'tag': 'doggy', 'score': 0.41756876620422556}, {'tag': 'pitbull rules', 'score': 1.0999268293380737}, {'tag': 'pitbull love', 'score': 1.0999268293380737}, {'tag': 'pitbull life', 'score': 1.0999268293380737}, {'tag': 'pitbull dad', 'score': 1.0999268293380737}]

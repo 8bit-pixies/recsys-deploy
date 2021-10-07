@@ -134,5 +134,8 @@ notebooks/model
 
 *.pdf
 
+notebooks/model_dual
 recsys/metadata_simple
+recsys/metadata_dual
 notebooks/model_simple
+notebooks/model_simple*
