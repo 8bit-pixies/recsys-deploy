@@ -1,19 +1,12 @@
-import os
-import random
 import string
 from typing import List
 
-import faiss
-import fasttext
 import gensim
 import numpy as np
-import pandas as pd
-import pkg_resources
-from gensim import corpora, models
 from pydantic import BaseModel, validator
 from scipy.spatial import distance
 
-from recsys import utils
+NON_CORE_LANG = ["ja", "ko", "zh"]
 
 
 class Query(BaseModel):
@@ -32,94 +25,80 @@ class Output(BaseModel):
     score: float
 
 
-def recommend_lang(query, k=5, df=None, fasttext_model=None, model=None):
+def preprocess_tags(tag: List[str]):
+    # remove punctuation, and replaces underscores with spaces
+    stripped_list = [
+        gensim.utils.simple_preprocess(x.replace("_", " ").translate(str.maketrans("", "", string.punctuation)))
+        for x in tag
+    ]
+    return [val for sublist in stripped_list for val in sublist]
+
+
+def recsys(query, limit, model):
     """
-    This is the entry point for launching the API
-    """
-    NON_LATIN_LANGS = ["ja", "ko", "zh"]
-    if fasttext_model is None:
-        fasttext_model = fasttext.load_model(os.path.join(os.path.dirname(__file__), "metadata_dual/lid.176.bin"))
-    if model is None:
-        model = {
-            "en": (
-                corpora.Dictionary.load(os.path.join(os.path.dirname(__file__), "metadata_dual/dictionary_en")),
-                models.Word2Vec.load(os.path.join(os.path.dirname(__file__), "metadata_dual/w2v_en")),
-                models.TfidfModel.load(os.path.join(os.path.dirname(__file__), "metadata_dual/tfidf_en")),
-                models.LsiModel.load(os.path.join(os.path.dirname(__file__), "metadata_dual/lsi_en")),
-                faiss.read_index(os.path.join(os.path.dirname(__file__), "metadata_dual/faiss_en.index")),
-            ),
-            "other": (
-                corpora.Dictionary.load(os.path.join(os.path.dirname(__file__), "metadata_dual/dictionary_other")),
-                models.Word2Vec.load(os.path.join(os.path.dirname(__file__), "metadata_dual/w2v_other")),
-                models.TfidfModel.load(os.path.join(os.path.dirname(__file__), "metadata_dual/tfidf_other")),
-                models.LsiModel.load(os.path.join(os.path.dirname(__file__), "metadata_dual/lsi_other")),
-                faiss.read_index(os.path.join(os.path.dirname(__file__), "metadata_dual/faiss_other.index")),
-            ),
+    See cli.py or api.py - don't call this directly
+
+    Parameters
+    ----------
+
+    query: List[str] - list of tags
+    limit: int - the number of tags to recommend
+    model: Dict - dictionary object which defines the model object.
+
+    The format of the dictionary is as follows:
+
+    {
+        <language>: {
+            'dictionary': gensim dictionary,
+            'tfidf': gensim tfidf,
+            'lsi': gensim lsi,
+            'w2v': gensim w2v,
+            'df': pandas database of tags used as reference,
+            'index': faiss - approximate nearest neighbour learned,
         }
-    lang = fasttext_model.predict([" ".join(query)])[0][0][0][-2:]
-    if lang in NON_LATIN_LANGS:
-        query_clean = query
-        lang = "other"
-    else:
-        query_clean = utils.preprocess_tags(query)
-        lang = "en"
+    }
+    """
+    lang = model["fasttext"].predict([" ".join(query)])[0][0][0][-2:]
+    lang = "core" if lang not in NON_CORE_LANG else "other"
+    query_clean = preprocess_tags(query)
+    model_sub = model[lang]
+    dictionary = model_sub["dictionary"]
+    tfidf = model_sub["tfidf"]
+    lsi = model_sub["lsi"]
+    w2v = model_sub["w2v"]
+    df = model_sub["df"]
+    index = model_sub["index"]
 
-    dictionary, w2v, tfidf, lsi, index = model[lang]
-
-    if df is None:
-        df_lang = utils.load_reference_data(lang, fasttext_model)
-    else:
-        df_lang = df[df["lan_split"] == lang]
-    return generate_recommendations(
-        query, k=k, df=df_lang, lang=lang, dictionary=dictionary, w2v=w2v, tfidf=tfidf, lsi=lsi, index=index
-    )
-
-
-def generate_recommendations(
-    query, k=5, df=None, fasttext_model=None, lang=None, dictionary=None, w2v=None, tfidf=None, lsi=None, index=None
-):
-    if df is None:
-        df = utils.load_reference_data(lang, fasttext_model)
-    if dictionary is None or w2v is None or tfidf is None or lsi is None or index is None or lang is None:
-        raise Exception("you should use the higher order function?")
-
-    query_clean = utils.preprocess_tags(query)
     bow_query = [dictionary.doc2bow(query_clean)]
     output_query = lsi[tfidf[bow_query]]
 
     d = index.d
     xt = gensim.matutils.corpus2csc(output_query, num_terms=d).A.T.astype(np.float32)
-    D, I = index.search(xt, k)
+    D, I = index.search(xt, limit)
     suggested = df.iloc[I.flatten()].copy()
     suggested["score"] = D.flatten() * 100
     suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
 
     # now flatten and return top 5
-    output = suggested.explode("tag").groupby("tag").first().reset_index()
-    if output.shape[0] < k:
-        # have to search more...
-        D, I = index.search(xt, k * 50)
-        suggested = df.iloc[I.flatten()].copy()
-        suggested["score"] = D.flatten() * 100
-        suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
-
-        # now flatten and return top 5
-        output = suggested.explode("tag").groupby("tag").first().reset_index()
+    output = (
+        suggested.explode("tag")
+        .groupby("tag")
+        .first()
+        .reset_index()
+        # .head(k)[["tag", "score"]]
+    )
 
     # calculate tag_list average
     mean_query = [w2v.wv[x] for x in query if x in w2v.wv.key_to_index]
     if len(mean_query) == 0:
-        return output.head(k)[["tag", "score"]].to_dict(orient="records")
+        return output.head(limit)[["tag", "score"]].to_dict(orient="records")
     else:
         mean_query = np.mean(mean_query, axis=0)
-        try:
-            w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
-        except:
-            w2v_tag = mean_query.reshape(1, -1)
+        w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
         mean_query = mean_query.reshape(1, -1)
         w2v_dist = distance.cdist(mean_query, w2v_tag).flatten()
         output["score"] = output["score"] * (w2v_dist + 1)
 
         # sort by score and output
         output = output.sort_values(by=["score"])
-        return output.head(k)[["tag", "score"]].to_dict(orient="records")
+        return output.head(limit)[["tag", "score"]].to_dict(orient="records")

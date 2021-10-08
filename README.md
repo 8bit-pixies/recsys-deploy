@@ -101,12 +101,12 @@ This demonstrates the multi-language support (albeit, not necessarily sensible)
 
 ```
 $ python -m recsys.cli '{"query":["广州"], "limit": 5}'
-[{'tag': 'THE MOOD', 'score': 9.871350288391113}, {'tag': 'みずの', 'score': 9.871350288391113}, {'tag': '三遊亭わん丈', 'score': 9.871350288391113}, {'tag': '塩大福', 'score': 9.871350288391113}, {'tag': '春風亭一蔵', 'score': 9.871350288391113}]
+[{'tag': 'c25', 'score': 98.29067993164062}, {'tag': '混凝土直销', 'score': 98.29067993164062}, {'tag': 'sherlolly', 'score': 99.99999237060547}, {'tag': '三遊亭わん丈', 'score': 99.99999237060547}, {'tag': '春風亭一蔵', 'score': 99.99999237060547}]
 ```
 
 For english side - it is somewhat better. There are still limitations as the tags were built on exact match at this stage, and don't tokenize tags.
 
-```
+````
 $ python -m recsys.cli '{"query":["dog", "dog park"], "limit": 5}'
-[{'tag': ':00 doggie!!!', 'score': 31.603696823120117}, {'tag': 'going 2 CRYYY', 'score': 33.004329681396484}, {'tag': 'mutastanaccount', 'score': 37.02174377441406}, {'tag': 'is it different depending on the size of the cat like it is for dog', 'score': 37.02174377441406}, {'tag': 'jim jarmusch', 'score': 38.43353271484375}]
-```
+[{'tag': 'dogsarefamily', 'score': 31.691408157348633}, {'tag': 'cute dogs', 'score': 31.691408157348633}, {'tag': 'huskylove', 'score': 31.691408157348633}, {'tag': 'petlovers', 'score': 31.691408157348633}, {'tag': 'mtblife', 'score': 35.07106399536133}]```
+````
