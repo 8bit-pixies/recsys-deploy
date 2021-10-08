@@ -6,7 +6,7 @@ train_quick: install
 	mkdir -p notebooks/model_quick
 	wget -O notebooks/model_quick/lid.176.ftz https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz
 	python notebooks/model_quick.py
-	cp -r notebooks/model_quick recsys/model_quick
+	cp -r notebooks/model_quick recsys
 
 install:
 	pip install -e . 
