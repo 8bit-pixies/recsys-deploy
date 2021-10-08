@@ -38,10 +38,10 @@ python benchmark/benchmark.py
 
 You can try the cli as shown below
 
-````sh
+```sh
 $ python -m recsys.cli '{"query":["dog", "dog park"], "limit": 5}'
-[{'tag': 'dogsarefamily', 'score': 31.691408157348633}, {'tag': 'cute dogs', 'score': 31.691408157348633}, {'tag': 'huskylove', 'score': 31.691408157348633}, {'tag': 'petlovers', 'score': 31.691408157348633}, {'tag': 'mtblife', 'score': 35.07106399536133}]```
-````
+[{'tag': 'dogsarefamily', 'score': 31.691408157348633}, {'tag': 'cute dogs', 'score': 31.691408157348633}, {'tag': 'huskylove', 'score': 31.691408157348633}, {'tag': 'petlovers', 'score': 31.691408157348633}, {'tag': 'mtblife', 'score': 35.07106399536133}]
+```
 
 ```sh
 $ python -m recsys.cli '{"query":["广州"], "limit": 5}'
