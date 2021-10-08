@@ -128,10 +128,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-data/
+*.csv
 # notebooks/
 notebooks/model
 
+assets/
 *.pdf
 
 notebooks/model_dual
@@ -139,3 +140,4 @@ recsys/metadata_simple
 recsys/metadata_dual
 notebooks/model_simple
 notebooks/model_simple*
+notebooks/model_*
