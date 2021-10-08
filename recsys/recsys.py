@@ -94,7 +94,10 @@ def recsys(query, limit, model):
         return output.head(limit)[["tag", "score"]].to_dict(orient="records")
     else:
         mean_query = np.mean(mean_query, axis=0)
-        w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
+        try:
+            w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
+        except:
+            w2v_tag = mean_query.reshape(1, -1)
         mean_query = mean_query.reshape(1, -1)
         w2v_dist = distance.cdist(mean_query, w2v_tag).flatten()
         output["score"] = output["score"] * (w2v_dist + 1)

@@ -34,4 +34,6 @@ podman_build:
 podman_run:
 	$(docker) run --rm -it -p 8000:8000 recsys
 
+podman_run_build: podman_build podman_run
+
 train_quick_run: train_quick podman_build podman_run
