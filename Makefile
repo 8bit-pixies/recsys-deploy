@@ -1,12 +1,12 @@
 # I'm using podman - change this where appropriate!
 docker = podman
 
-train_quick:
+train_quick: install
 	# move training data to data/
-	mkdir notebooks/model_quick
+	mkdir -p notebooks/model_quick
 	wget -O notebooks/model_quick/lid.176.ftz https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz
 	python notebooks/model_quick.py
-	cp -r notebooks/model_quick/* recsys/model_quick/*
+	cp -r notebooks/model_quick recsys/model_quick
 
 install:
 	pip install -e . 
