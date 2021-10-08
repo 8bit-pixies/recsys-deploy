@@ -1,12 +1,12 @@
 # I'm using podman - change this where appropriate!
 docker = podman
 
-train:
+train_quick:
 	# move training data to data/
-	mkdir notebooks/model_dual
-	wget -O notebooks/model_dual/lid.176.bin https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin
-	python notebooks/tfidf_faiss_dual.pytest
-	cp -r notebooks/model_dual/* recsys/model_dual/*
+	mkdir notebooks/model_quick
+	wget -O notebooks/model_quick/lid.176.ftz https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz
+	python notebooks/model_quick.py
+	cp -r notebooks/model_quick/* recsys/model_quick/*
 
 install:
 	pip install -e . 
@@ -29,11 +29,9 @@ lint-python:
 	black . --check;
 
 podman_build:
-	# buildah containers
 	$(docker) build -t recsys -f docker/Dockerfile.api .
 
 podman_run:
-	# podman run recsys '<json blob>'
-	# podman run recsys
-	# $(docker) run recsys
 	$(docker) run --rm -it -p 8000:8000 recsys
+
+train_quick_run: train_quick podman_build podman_run
