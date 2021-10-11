@@ -68,6 +68,7 @@ def recsys(query, limit, model):
     w2v = model_sub["w2v"]
     df = model_sub["df"]
     index = model_sub["index"]
+    base_vector = model_sub["base_vector"]
 
     bow_query = [dictionary.doc2bow(query_clean)]
     output_query = lsi[tfidf[bow_query]]
@@ -97,7 +98,7 @@ def recsys(query, limit, model):
         try:
             w2v_tag = np.stack([w2v.wv[x] if x in w2v.wv.key_to_index else mean_query for x in output["tag"]], 0)
         except:
-            w2v_tag = mean_query.reshape(1, -1)
+            w2v_tag = base_vector.reshape(1, -1)
         mean_query = mean_query.reshape(1, -1)
         w2v_dist = distance.cdist(mean_query, w2v_tag).flatten()
         output["score"] = output["score"] * (w2v_dist + 1)
