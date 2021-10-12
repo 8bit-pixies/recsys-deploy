@@ -141,3 +141,5 @@ recsys/metadata_dual
 notebooks/model_simple
 notebooks/model_simple*
 notebooks/model_*
+
+.vscode

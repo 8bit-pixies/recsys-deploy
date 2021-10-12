@@ -2,6 +2,17 @@
 
 Recommendation System Deployment
 
+# Setup and Requirements
+
+Our project leverages Python and the FAISS library. This has to be built before running our code. Unfortunately there is no `pip install` variation for FAISS. 
+
+The easiest way to setup is using conda:
+
+```sh
+conda install -c conda-forge faiss-cpu
+```
+
+
 # Training
 
 The easiest way to try and run the whole thing end to end is to
@@ -9,7 +20,9 @@ The easiest way to try and run the whole thing end to end is to
 *  move `tags_on_posts_sample.csv` to `data/tags_on_posts_sample.csv`
 *  automatically install package + dependencies, and train the model via `make train_quick_run`
 
-```
+```sh
+conda create -n recsys-deploy -c conda-forge python=3.8 faiss-cpu -y
+conda activate recsys-deploy
 wget -O data/tags_on_posts_sample.csv <https://path/to/tags_on_posts_sample.csv>
 make train_quick_run
 ```
@@ -17,7 +30,10 @@ make train_quick_run
 This won't train `LSI` to completion, but shouldn't take longer than a few minutes to train. It will then build and run the container. Longer form:
 
 ```sh
+conda create -n recsys-deploy -c conda-forge python=3.8 faiss-cpu -y
+conda activate recsys-deploy
 wget -O data/tags_on_posts_sample.csv <https://path/to/tags_on_posts_sample.csv>
+conda install -c conda-forge faiss-cpu  # see setup notes above
 pip install -e . 
 mkdir -p notebooks/model_quick
 wget -O notebooks/model_quick/lid.176.ftz https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz
