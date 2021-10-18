@@ -1,5 +1,5 @@
 # I'm using podman - change this where appropriate!
-docker = podman
+docker = docker
 
 train_quick: install
 	# move training data to data/
