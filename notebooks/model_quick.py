@@ -135,7 +135,7 @@ def train_or_load_model(lang="core"):
         faiss.write_index(index, INDEX_CORE_MODEL)
     else:
         faiss.write_index(index, INDEX_OTHER_MODEL)
-    model = {"df": df, "dictionary": dictionary, "tfidf": tfidf, "lsi": lsi, "w2v": w2v} # , "index": index}
+    model = {"df": df, "dictionary": dictionary, "tfidf": tfidf, "lsi": lsi, "w2v": w2v}  # , "index": index}
     return model
 
 
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     model_loaded = joblib.load("notebooks/model_quick/model.joblib")
     model_loaded["fasttext"] = fasttext.load_model(FASTTEST_MODEL)
-    model_loaded['core']['index'] = faiss.read_index(INDEX_CORE_MODEL)
-    model_loaded['other']['index'] = faiss.read_index(INDEX_OTHER_MODEL)
+    model_loaded["core"]["index"] = faiss.read_index(INDEX_CORE_MODEL)
+    model_loaded["other"]["index"] = faiss.read_index(INDEX_OTHER_MODEL)
     print(recsys(["dogs", "dog park"], limit=5, model=model_loaded))
     print(recsys(["广州"], limit=5, model=model_loaded))
