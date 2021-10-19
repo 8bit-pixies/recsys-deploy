@@ -91,6 +91,9 @@ def recsys(query, limit, model):
         .reset_index()
         [["tag", "score"]]
     )
+    output["score"] /= output["score"].max()
+    output["score"] *= 100
+    output["score"] = np.nan_to_num(output["score"], nan=100.0)
 
     target_limit = int(output.shape[0] * (output.shape[0] / limit * 2)) + 1
     while output.shape[0] < limit:
