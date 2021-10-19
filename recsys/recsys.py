@@ -92,7 +92,7 @@ def recsys(query, limit, model):
         # .head(k)[["tag", "score"]]
     )
 
-    target_limit = int(output.shape[0] * (output.shape[0]/limit * 2)) + 1
+    target_limit = int(output.shape[0] * (output.shape[0] / limit * 2)) + 1
     while output.shape[0] < limit:
         # do stuff here to expand.
         D, I = index.search(xt, target_limit * 2)
@@ -109,6 +109,9 @@ def recsys(query, limit, model):
         target_limit = target_limit * 2
         output_next["score"] += output["score"].max()
         output = pd.concat([output, output_next])
+        output["score"] /= output["score"].max()
+        output["score"] *= 100
+        output["score"] = np.nan_to_num(output["score"], nan=100.0)
         if output.shape[0] >= limit:
             output = output.sort_values("score").reset_index(drop=True).head(limit)
 
@@ -124,7 +127,7 @@ def recsys(query, limit, model):
             w2v_tag = mean_query.reshape(1, -1)
         mean_query = mean_query.reshape(1, -1)
         w2v_dist = distance.cdist(mean_query, w2v_tag).flatten()
-        output["score"] = output["score"] * (w2v_dist + 1)
+        output["score"] = output["score"] * (np.nan_to_num(w2v_dist, nan=0.0) + 1)
 
         # sort by score and output
         output = output.sort_values(by=["score"])
