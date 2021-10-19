@@ -143,3 +143,4 @@ notebooks/model_simple*
 notebooks/model_*
 
 .vscode
+recsys/model_quick/*
