@@ -25,6 +25,7 @@ import pandas as pd
 import tqdm
 from colorama import Fore, Style
 from gensim import corpora, models
+from gensim.parsing.porter import PorterStemmer
 from scipy.spatial import distance
 
 # putting these parameters here for now...
@@ -39,8 +40,9 @@ BATCH_SIZE = 1024
 
 def preprocess_tags(tag: List[str]):
     # remove punctuation
+    p = PorterStemmer()
     stripped_list = [
-        gensim.utils.simple_preprocess(x.replace("_", " ").translate(str.maketrans("", "", string.punctuation)))
+        gensim.utils.simple_preprocess(p.stem(x.replace("_", " ").translate(str.maketrans("", "", string.punctuation))))
         for x in tag
     ]
     return [val for sublist in stripped_list for val in sublist]

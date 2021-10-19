@@ -3,6 +3,8 @@ from typing import List
 
 import gensim
 import numpy as np
+import pandas as pd
+from gensim.parsing.porter import PorterStemmer
 from pydantic import BaseModel, validator
 from scipy.spatial import distance
 
@@ -26,9 +28,10 @@ class Output(BaseModel):
 
 
 def preprocess_tags(tag: List[str]):
-    # remove punctuation, and replaces underscores with spaces
+    # remove punctuation
+    p = PorterStemmer()
     stripped_list = [
-        gensim.utils.simple_preprocess(x.replace("_", " ").translate(str.maketrans("", "", string.punctuation)))
+        gensim.utils.simple_preprocess(p.stem(x.replace("_", " ").translate(str.maketrans("", "", string.punctuation))))
         for x in tag
     ]
     return [val for sublist in stripped_list for val in sublist]
@@ -79,7 +82,8 @@ def recsys(query, limit, model):
     suggested["score"] = D.flatten() * 100
     suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
 
-    # now flatten and return top 5
+    # now flatten and return top k
+    # we need exception handling or for it to do something if it returns less than k
     output = (
         suggested.explode("tag")
         .groupby("tag")
@@ -87,6 +91,25 @@ def recsys(query, limit, model):
         .reset_index()
         # .head(k)[["tag", "score"]]
     )
+
+    target_limit = limit * 100
+    while output.shape[0] < limit:
+        # do stuff here to expand.
+        D, I = index.search(xt, target_limit * 100)
+        suggested = df.iloc[I.flatten()].copy()
+        suggested["score"] = D.flatten() * 100
+        suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
+        output_next = (
+            suggested.explode("tag")
+            .groupby("tag")
+            .first()
+            .reset_index()
+            # .head(k)[["tag", "score"]]
+        )
+        target_limit = target_limit * 100
+        output_next["score"] += output["score"].max()
+        output = pd.concat([output, output_next])
+        output = output.sort_values("score").reset_index(drop=True).head(limit)
 
     # calculate tag_list average
     mean_query = [w2v.wv[x] for x in query if x in w2v.wv.key_to_index]
