@@ -21,4 +21,6 @@ model_loaded["other"]["index"] = faiss.read_index(os.path.join(os.path.dirname(_
 
 @app.post("/", response_model=List[Output])
 async def root(query: Query):
-    return recsys(query.query, query.limit, model_loaded)
+    output = recsys(query.query, limit=query.limit, model=model_loaded)
+    print(output, query.query, query.limit)
+    return output
