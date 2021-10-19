@@ -121,7 +121,7 @@ def recsys(query, limit, model):
         )
         output["score"] /= output["score"].max()
         output["score"] *= 100
-        output["score"] = np.nan_to_num(output["score"], nan=100.0)
+        output["score"] = np.nan_to_num(output["score"], nan=1e-6)
         if output.shape[0] >= limit:
             output = output.sort_values("score").reset_index(drop=True).head(limit)
 
