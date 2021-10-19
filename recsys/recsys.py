@@ -89,7 +89,7 @@ def recsys(query, limit, model):
         .groupby("tag")
         .first()
         .reset_index()
-        # .head(k)[["tag", "score"]]
+        [["tag", "score"]]
     )
 
     target_limit = int(output.shape[0] * (output.shape[0] / limit * 2)) + 1
@@ -104,11 +104,18 @@ def recsys(query, limit, model):
             .groupby("tag")
             .first()
             .reset_index()
-            # .head(k)[["tag", "score"]]
+            [["tag", "score"]]
         )
         target_limit = target_limit * 2
         output_next["score"] += output["score"].max()
         output = pd.concat([output, output_next])
+        output = (
+            output
+            .groupby("tag")
+            .first()
+            .reset_index()
+            [["tag", "score"]]
+        )
         output["score"] /= output["score"].max()
         output["score"] *= 100
         output["score"] = np.nan_to_num(output["score"], nan=100.0)
