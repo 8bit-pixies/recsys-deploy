@@ -79,7 +79,7 @@ def recsys(query, limit, model):
     xt = gensim.matutils.corpus2csc(output_query, num_terms=d).A.T.astype(np.float32)
     D, I = index.search(xt, limit)
     suggested = df.iloc[I.flatten()].copy()
-    suggested["score"] = D.flatten() * 100
+    suggested["score"] = D.flatten()
     suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
 
     # now flatten and return top k
@@ -92,12 +92,12 @@ def recsys(query, limit, model):
         # .head(k)[["tag", "score"]]
     )
 
-    target_limit = limit * 100
+    target_limit = int(output.shape[0] * (output.shape[0]/limit * 2)) + 1
     while output.shape[0] < limit:
         # do stuff here to expand.
-        D, I = index.search(xt, target_limit * 100)
+        D, I = index.search(xt, target_limit * 2)
         suggested = df.iloc[I.flatten()].copy()
-        suggested["score"] = D.flatten() * 100
+        suggested["score"] = D.flatten()
         suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
         output_next = (
             suggested.explode("tag")
@@ -106,10 +106,11 @@ def recsys(query, limit, model):
             .reset_index()
             # .head(k)[["tag", "score"]]
         )
-        target_limit = target_limit * 100
+        target_limit = target_limit * 2
         output_next["score"] += output["score"].max()
         output = pd.concat([output, output_next])
-        output = output.sort_values("score").reset_index(drop=True).head(limit)
+        if output.shape[0] >= limit:
+            output = output.sort_values("score").reset_index(drop=True).head(limit)
 
     # calculate tag_list average
     mean_query = [w2v.wv[x] for x in query if x in w2v.wv.key_to_index]

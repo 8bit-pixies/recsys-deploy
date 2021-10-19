@@ -160,7 +160,7 @@ def recsys(query, limit, model):
     xt = gensim.matutils.corpus2csc(output_query, num_terms=d).A.T.astype(np.float32)
     D, I = index.search(xt, limit)
     suggested = df.iloc[I.flatten()].copy()
-    suggested["score"] = D.flatten() * 100
+    suggested["score"] = D.flatten()
     suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
 
     # now flatten and return top 5

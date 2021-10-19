@@ -9,7 +9,7 @@ import tqdm
 df = pd.read_csv("data/tags_on_posts_sample.csv")[["tags", "lang"]]
 
 
-def benchmark_function(df=df, repeats=2000):
+def benchmark_function(df=df, repeats=200):
 
     output = []
 
@@ -28,7 +28,7 @@ def benchmark_function(df=df, repeats=2000):
         limit = random.choice(range(50, 100))
 
         t0 = round(time.time() * 1000.0)
-        _ = httpx.post("http://127.0.0.1:8000/", json={"query": query_all, "limit": limit})
+        _ = httpx.post("http://127.0.0.1:8000/", json={"query": query_all, "limit": limit}, timeout=None)
         time_taken = round(time.time() * 1000.0) - t0
         output.append(time_taken)
 
