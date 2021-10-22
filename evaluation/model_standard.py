@@ -14,6 +14,7 @@ This should run very quickly - no caching required.
 import os
 import string
 import timeit
+from difflib import SequenceMatcher
 from typing import List
 
 import faiss
@@ -27,6 +28,12 @@ from colorama import Fore, Style
 from gensim import corpora, models
 from gensim.parsing.porter import PorterStemmer
 from scipy.spatial import distance
+from sklearn.model_selection import train_test_split
+
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
 
 # putting these parameters here for now...
 REC_MODEL = "notebooks/model_quick/model.joblib"
@@ -48,6 +55,16 @@ def preprocess_tags(tag: List[str]):
     return [val for sublist in stripped_list for val in sublist]
 
 
+def load_train_test_data(lang=None, output="train"):
+    df = load_reference_data(lang)
+    X_train, X_test = train_test_split(df, random_state=42)
+    if output == "train":
+        return X_train
+    if output == "test":
+        return X_test
+    return X_train, X_test
+
+
 def load_reference_data(lang=None):
     # there are different languages - the naive approach is to train a different
     # model for each language; we'll deal with that detail later -
@@ -67,7 +84,8 @@ def load_reference_data(lang=None):
 
 
 def train_or_load_model(lang="core"):
-    df = load_reference_data()
+    # df = load_reference_data()
+    df = load_train_test_data(output="train")
     df = df[df["lan_split"] == lang]
 
     bag_of_tags = df.clean_tags
@@ -87,7 +105,7 @@ def train_or_load_model(lang="core"):
     tfidf_corpus = tfidf[bow_corpus]
     # chunk and merge - to avoid weird errors...
     # set this to like 5 to speed up training...
-    for idx_set in tqdm.tqdm(range(len(tfidf_corpus) // BATCH_SIZE)[:5]):
+    for idx_set in tqdm.tqdm(range(len(tfidf_corpus) // BATCH_SIZE)):
         if idx_set == 0:
             lsi_proj = models.lsimodel.Projection(
                 m=max(dictionary.cfs.keys()) + 1,
@@ -119,6 +137,9 @@ def train_or_load_model(lang="core"):
     w2v = models.Word2Vec(bag_of_tags, vector_size=MAX_DIM)
 
     # this is for querying - save as the baseline if none of the tags have generated vectors
+    df = load_reference_data()  # index all?
+    bag_of_tags = df.clean_tags
+    bow_corpus = [dictionary.doc2bow(text) for text in bag_of_tags]
     index = faiss.IndexFlatL2(MAX_DIM)
     output = lsi[tfidf[bow_corpus]]
     for idx_set in tqdm.tqdm(range(df.shape[0] // BATCH_SIZE)):
@@ -244,5 +265,31 @@ if __name__ == "__main__":
     model_loaded["fasttext"] = fasttext.load_model(FASTTEST_MODEL)
     model_loaded["core"]["index"] = faiss.read_index(INDEX_CORE_MODEL)
     model_loaded["other"]["index"] = faiss.read_index(INDEX_OTHER_MODEL)
-    print(recsys(["dogs", "dog park"], limit=5, model=model_loaded))
-    print(recsys(["广州"], limit=5, model=model_loaded))
+
+    threshold = 0.8  # tag similarity for it to be "same"
+    df_test = load_train_test_data(output="test")
+    rnd = np.random.RandomState(42)
+    num_tags_to_sample = rnd.randint(1, high=3, size=df_test.shape[0])
+    output_stats = []
+    for idx, row in enumerate(tqdm.tqdm(df_test.to_dict(orient="records"))):
+        tags = list(set(row["tags"].split(",")))
+        if len(tags) == 1:
+            continue
+        if len(tags) > 2:
+            num_sample = num_tags_to_sample[idx]
+        else:
+            num_sample = 1
+        remove_tags = rnd.choice(tags, num_sample)
+        input_tags = [x for x in tags if x not in remove_tags]
+        pred_tags = [x["tag"] for x in recsys(input_tags, limit=5, model=model_loaded)]
+        metric = False
+        for input_tag in input_tags:
+            for pred_tag in pred_tags:
+                if similar(input_tag, pred_tag) >= threshold:
+                    metric = True
+                    break
+
+        output_stats.append(metric)
+
+    print("performance on test: ", np.mean(output_stats))
+    # 0.196

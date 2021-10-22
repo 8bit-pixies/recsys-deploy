@@ -14,6 +14,7 @@ This should run very quickly - no caching required.
 import os
 import string
 import timeit
+from difflib import SequenceMatcher
 from typing import List
 
 import faiss
@@ -27,6 +28,12 @@ from colorama import Fore, Style
 from gensim import corpora, models
 from gensim.parsing.porter import PorterStemmer
 from scipy.spatial import distance
+from sklearn.model_selection import train_test_split
+
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
 
 # putting these parameters here for now...
 REC_MODEL = "notebooks/model_quick/model.joblib"
@@ -48,6 +55,16 @@ def preprocess_tags(tag: List[str]):
     return [val for sublist in stripped_list for val in sublist]
 
 
+def load_train_test_data(lang=None, output="train"):
+    df = load_reference_data(lang)
+    X_train, X_test = train_test_split(df, random_state=42)
+    if output == "train":
+        return X_train
+    if output == "test":
+        return X_test
+    return X_train, X_test
+
+
 def load_reference_data(lang=None):
     # there are different languages - the naive approach is to train a different
     # model for each language; we'll deal with that detail later -
@@ -67,77 +84,39 @@ def load_reference_data(lang=None):
 
 
 def train_or_load_model(lang="core"):
-    df = load_reference_data()
+    # df = load_reference_data()
+    df = load_train_test_data(output="train")
     df = df[df["lan_split"] == lang]
 
-    bag_of_tags = df.clean_tags
-    dictionary = corpora.Dictionary(bag_of_tags)
-    dictionary.filter_extremes(no_below=5)
-    dictionary.compactify()
-    f"..calculated dictionary size (w2v): {Style.BRIGHT + Fore.BLUE}{max(dictionary.cfs.keys())}{Style.RESET_ALL}."
-    bow_corpus = [dictionary.doc2bow(text) for text in bag_of_tags]
-    tfidf = models.TfidfModel(bow_corpus)
-    lsi = models.LsiModel(
-        num_topics=MAX_DIM,
-        chunksize=BATCH_SIZE * 2,
-        power_iters=2,
-        id2word=dictionary,
-        dtype=np.float32,
-    )
-    tfidf_corpus = tfidf[bow_corpus]
-    # chunk and merge - to avoid weird errors...
-    # set this to like 5 to speed up training...
-    for idx_set in tqdm.tqdm(range(len(tfidf_corpus) // BATCH_SIZE)[:5]):
-        if idx_set == 0:
-            lsi_proj = models.lsimodel.Projection(
-                m=max(dictionary.cfs.keys()) + 1,
-                k=MAX_DIM,
-                docs=tfidf_corpus[idx_set * BATCH_SIZE : (idx_set + 1) * (BATCH_SIZE)],
-            )
-        elif idx_set == (df.shape[0] // BATCH_SIZE):
-            try:
-                lsi_temp = models.lsimodel.Projection(
-                    m=max(dictionary.cfs.keys()) + 1,
-                    k=MAX_DIM,
-                    docs=tfidf_corpus[idx_set * BATCH_SIZE :],
-                )
-                lsi_proj.merge(lsi_temp)
-            except Exception as e:
-                print(e)
-        else:
-            try:
-                lsi_temp = models.lsimodel.Projection(
-                    m=max(dictionary.cfs.keys()) + 1,
-                    k=MAX_DIM,
-                    docs=tfidf_corpus[idx_set * BATCH_SIZE : (idx_set + 1) * (BATCH_SIZE)],
-                )
-                lsi_proj.merge(lsi_temp)
-            except Exception as e:
-                print(e)
-    lsi.projection = lsi_proj
-
+    if lang == "core":
+        bag_of_tags = df.clean_tags
+    else:
+        bag_of_tags = df.split_tags
     w2v = models.Word2Vec(bag_of_tags, vector_size=MAX_DIM)
 
     # this is for querying - save as the baseline if none of the tags have generated vectors
+    base_vector = np.mean([w2v.wv[x] for x in w2v.wv.key_to_index], axis=0)
+    bag_of_tags["vector_of_tags"] = bag_of_tags.apply(
+        lambda query: np.mean([w2v.wv[x] for x in query if x in w2v.wv.key_to_index], axis=0)
+    )
+    bag_of_tags["vector_of_tags"] = bag_of_tags["vector_of_tags"].apply(
+        lambda x: base_vector if np.isnan(x).all() else x
+    )
+
     index = faiss.IndexFlatL2(MAX_DIM)
-    output = lsi[tfidf[bow_corpus]]
+    vector_of_tags = np.stack(bag_of_tags["vector_of_tags"].tolist(), axis=0)
     for idx_set in tqdm.tqdm(range(df.shape[0] // BATCH_SIZE)):
         if idx_set == (df.shape[0] // BATCH_SIZE):
-            output_array = gensim.matutils.corpus2csc(output[idx_set * BATCH_SIZE :], num_terms=index.d).T.A.astype(
-                np.float32
-            )
+            output_array = vector_of_tags[idx_set * BATCH_SIZE :]
         else:
-            output_array = gensim.matutils.corpus2csc(
-                output[idx_set * BATCH_SIZE : (idx_set + 1) * (BATCH_SIZE)], num_terms=index.d
-            ).T.A.astype(np.float32)
-        # print(output_array.shape)
+            output_array = vector_of_tags[idx_set * BATCH_SIZE : (idx_set + 1) * (BATCH_SIZE)]
         index.add(output_array)
 
     if lang == "core":
         faiss.write_index(index, INDEX_CORE_MODEL)
     else:
         faiss.write_index(index, INDEX_OTHER_MODEL)
-    model = {"df": df, "dictionary": dictionary, "tfidf": tfidf, "lsi": lsi, "w2v": w2v}  # , "index": index}
+    model = {"df": df, "w2v": w2v, "base_vector": base_vector}
     return model
 
 
@@ -167,20 +146,24 @@ def recsys(query, limit, model):
     """
     lang = model["fasttext"].predict([" ".join(query)])[0][0][0][-2:]
     lang = "core" if lang not in NON_CORE_LANG else "other"
-    query_clean = preprocess_tags(query)
+    if lang == "core":
+        query_clean = preprocess_tags(query)
+    else:
+        query_clean = query
+
     model_sub = model[lang]
-    dictionary = model_sub["dictionary"]
-    tfidf = model_sub["tfidf"]
-    lsi = model_sub["lsi"]
     w2v = model_sub["w2v"]
     df = model_sub["df"]
     index = model_sub["index"]
 
-    bow_query = [dictionary.doc2bow(query_clean)]
-    output_query = lsi[tfidf[bow_query]]
+    mean_query = [w2v.wv[x] for x in query_clean if x in w2v.wv.key_to_index]
+    if len(mean_query) == 0:
+        mean_query = model_sub["base_vector"]
+    else:
+        mean_query = np.mean(mean_query, axis=0)
 
-    d = index.d
-    xt = gensim.matutils.corpus2csc(output_query, num_terms=d).A.T.astype(np.float32)
+    # do ANN
+    xt = mean_query.reshape(1, -1)
     D, I = index.search(xt, limit)
     suggested = df.iloc[I.flatten()].copy()
     suggested["score"] = D.flatten()
@@ -244,5 +227,31 @@ if __name__ == "__main__":
     model_loaded["fasttext"] = fasttext.load_model(FASTTEST_MODEL)
     model_loaded["core"]["index"] = faiss.read_index(INDEX_CORE_MODEL)
     model_loaded["other"]["index"] = faiss.read_index(INDEX_OTHER_MODEL)
-    print(recsys(["dogs", "dog park"], limit=5, model=model_loaded))
-    print(recsys(["广州"], limit=5, model=model_loaded))
+
+    threshold = 0.8  # tag similarity for it to be "same"
+    df_test = load_train_test_data(output="test")
+    rnd = np.random.RandomState(42)
+    num_tags_to_sample = rnd.randint(1, high=3, size=df_test.shape[0])
+    output_stats = []
+    for idx, row in enumerate(tqdm.tqdm(df_test.to_dict(orient="records"))):
+        tags = list(set(row["tags"].split(",")))
+        if len(tags) == 1:
+            continue
+        if len(tags) > 2:
+            num_sample = num_tags_to_sample[idx]
+        else:
+            num_sample = 1
+        remove_tags = rnd.choice(tags, num_sample)
+        input_tags = [x for x in tags if x not in remove_tags]
+        pred_tags = [x["tag"] for x in recsys(input_tags, limit=5, model=model_loaded)]
+        metric = False
+        for input_tag in input_tags:
+            for pred_tag in pred_tags:
+                if similar(input_tag, pred_tag) >= threshold:
+                    metric = True
+                    break
+
+        output_stats.append(metric)
+
+    print("performance on test: ", np.mean(output_stats))
+    # 0.143

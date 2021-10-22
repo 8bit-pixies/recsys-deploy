@@ -84,13 +84,7 @@ def recsys(query, limit, model):
 
     # now flatten and return top k
     # we need exception handling or for it to do something if it returns less than k
-    output = (
-        suggested.explode("tag")
-        .groupby("tag")
-        .first()
-        .reset_index()
-        [["tag", "score"]]
-    )
+    output = suggested.explode("tag").groupby("tag").first().reset_index()[["tag", "score"]]
     output["score"] /= output["score"].max()
     output["score"] *= 100
     output["score"] = np.nan_to_num(output["score"], nan=100.0)
@@ -102,23 +96,11 @@ def recsys(query, limit, model):
         suggested = df.iloc[I.flatten()].copy()
         suggested["score"] = D.flatten()
         suggested["tag"] = suggested.tags.apply(lambda x: [y for y in x.split(",") if y not in query])
-        output_next = (
-            suggested.explode("tag")
-            .groupby("tag")
-            .first()
-            .reset_index()
-            [["tag", "score"]]
-        )
+        output_next = suggested.explode("tag").groupby("tag").first().reset_index()[["tag", "score"]]
         target_limit = target_limit * 2
         output_next["score"] += output["score"].max()
         output = pd.concat([output, output_next])
-        output = (
-            output
-            .groupby("tag")
-            .first()
-            .reset_index()
-            [["tag", "score"]]
-        )
+        output = output.groupby("tag").first().reset_index()[["tag", "score"]]
         output["score"] /= output["score"].max()
         output["score"] *= 100
         output["score"] = np.nan_to_num(output["score"], nan=1e-6)
